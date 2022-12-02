@@ -4,7 +4,7 @@ import numpy as np
 from gym import spaces
 from gym.utils import seeding
 
-from car_model import CarModel, CAR_WIDTH, CAR_HEIGHT
+from cliff_daredevil.car_model import CarModel, CAR_WIDTH, CAR_HEIGHT
 
 ROAD_HIGHT = 25.0
 DT = 1 / 60
@@ -117,7 +117,7 @@ class CliffDarvedevil(gym.Env):
     def render(self, mode='human'):
         screen_width, screen_height = 640, 320
         if self.viewer is None:
-            from gym.envs.classic_control import rendering
+            from cliff_daredevil import rendering
             self.viewer = rendering.Viewer(screen_width, screen_height)
             self.viewer.set_bounds(self.min_position, self.max_position, 0.0, 40.0)
             sky = rendering.make_polygon([(self.min_position, 0.0), (self.min_position, 40.0),
