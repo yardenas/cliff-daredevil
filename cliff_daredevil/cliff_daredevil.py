@@ -1,10 +1,11 @@
+from typing import Optional
 import Box2D as b2
 import gym
 import numpy as np
 from gym import spaces
 from gym.utils import seeding
 
-from cliff_daredevil.car_model import CarModel, CAR_WIDTH, CAR_HEIGHT
+from .car_model import CarModel, CAR_WIDTH, CAR_HEIGHT
 
 ROAD_HIGHT = 25.0
 DT = 1 / 60
@@ -35,7 +36,7 @@ class CliffDarvedevil(gym.Env):
         'video.frames_per_second': 30
     }
 
-    def __init__(self, friction_profile=0.1):
+    def __init__(self, render_mode: Optional[str] = None, friction_profile: float = 0.1):
         self.contactListener_keepref = FrictionZoneListener(self)
         self.min_position = -5.0
         self.max_position = 75.0
@@ -55,6 +56,7 @@ class CliffDarvedevil(gym.Env):
             high=np.array([self.max_position, 32.0]), dtype=np.float32
         )  # position, velocity
         self.car = None
+        self.render_mode = render_mode
         self.seed()
         self.reset()
 
@@ -70,11 +72,13 @@ class CliffDarvedevil(gym.Env):
         self.friction_zone = self.ground.fixtures[1]
         self.ground.userData = self.ground
 
+    # In new Gym API, this function is deprecated
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
     def step(self, action):
+        truncated = False
         if action is not None:
             action = np.clip(action, -1.0, 1.0)
             self.car.gas(action[0])
@@ -92,14 +96,16 @@ class CliffDarvedevil(gym.Env):
         if backward:
             reward -= 1.0
         angle = self.car.hull.angle
-        done = y < ROAD_HIGHT or backward or np.abs(angle) > 0.9
+        terminated = y < ROAD_HIGHT or backward or np.abs(angle) > 0.9
         if self.goal_zone[0] < x < self.goal_zone[1]:
             reward += 1.0
         distance = (self.goal_zone[0] - x)
         reward -= np.abs(distance)
         cost = -(self.goal_zone[1] + self.cliff_edge - x)
         v = self.car.hull.linearVelocity[0]
-        return np.array([x, v], np.float32), reward, done, {'cost': cost}
+        if self.render_mode == "human":
+            self.render()
+        return np.array([x, v], np.float32), reward, terminated, truncated, {'cost': cost}
 
     def reset(self):
         self._destroy()
@@ -107,17 +113,20 @@ class CliffDarvedevil(gym.Env):
         self.friction_zone.friction = self.friction(0)
         position = self.np_random.uniform(low=-0.1, high=0.1)
         self.car = CarModel(self.world, position, ROAD_HIGHT)
-        return self.step(None)[0]
+        if self.render_mode == "human":
+            self.render()
+        return self.step(None)[0], {}
 
     def _destroy(self):
         if self.car is None:
             return
         self.car.destroy()
 
-    def render(self, mode='human'):
+    def render(self):
+        mode = self.render_mode
         screen_width, screen_height = 640, 320
         if self.viewer is None:
-            from cliff_daredevil import rendering
+            import cliff_daredevil.rendering as rendering
             self.viewer = rendering.Viewer(screen_width, screen_height)
             self.viewer.set_bounds(self.min_position, self.max_position, 0.0, 40.0)
             sky = rendering.make_polygon([(self.min_position, 0.0), (self.min_position, 40.0),
@@ -217,7 +226,6 @@ if __name__ == "__main__":
 
     a = np.array([0.0, 0.0])
 
-
     def key_press(k, mod):
         global restart
         if k == 0xFF0D:
@@ -229,7 +237,6 @@ if __name__ == "__main__":
         if k == key.SPACE:
             a[1] = +0.8
 
-
     def key_release(k, mod):
         if k == key.RIGHT:
             a[0] = 0
@@ -237,7 +244,6 @@ if __name__ == "__main__":
             a[0] = 0
         if k == key.SPACE:
             a[1] = 0
-
 
     env = CliffDarvedevil()
     env = TimeLimit(env, 600)
@@ -252,7 +258,7 @@ if __name__ == "__main__":
         steps = 0
         restart = False
         while True:
-            s, r, done, info = env.step(a)
+            s, r, done, truncated, info = env.step(a)
             total_reward += r
             total_cost += info['cost']
             if steps % 200 == 0 or done:
