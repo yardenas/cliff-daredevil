@@ -141,7 +141,7 @@ class Viewer:
             arr = arr[::-1, :, 0:3]
         self.window.flip()
         self.onetime_geoms = []
-        return arr if return_rgb_array else self.isopen
+        return self.isopen, arr
 
     # Convenience
     def draw_circle(self, radius=10, res=30, filled=True, **attrs):
