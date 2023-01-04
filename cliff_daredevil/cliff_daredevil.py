@@ -145,7 +145,7 @@ class CliffDaredevil(gym.Env):
     ):
         self._destroy()
         self.friction_zone.touch = False
-        assert type(self.friction) is Callable
+        #assert type(self.friction) is Callable
         self.friction_zone.friction = self.friction(0.0)
         position = self.np_random.uniform(low=-0.1, high=0.1)
         self.car = CarModel(self.world, position, ROAD_HIGHT)
